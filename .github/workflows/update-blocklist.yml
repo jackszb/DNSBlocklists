@@ -1,35 +1,44 @@
 name: Update blocklist
+
 on:
-    push:
-        branches: [main]
-    pull_request:
-        branches: [main]
-    workflow_dispatch:
-    schedule:
-        - cron: "*/5 * * * *"
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
 jobs:
-    build:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v2
-            - name: Set up Python 3.12
-              uses: actions/setup-python@v2
-              with:
-                  python-version: "3.12"
-            - name: Install dependencies
-              run: |
-                  python -m pip install --upgrade pip
-                  pip install -r requirements.txt
-            - name: Generate new blocklists
-              run: |
-                  python generate.py
-            - name: commit files and push changes
-              run: |
-                  git config --local user.email "action@github.com"
-                  git config --local user.name "GitHub Action"
-                  git fetch https://github.com/louisa-uno/DNSBlocklists.git HEAD:auto-update
-                  git add -A
-                  git commit -m "Updated blocklists" -a
-                  git pull --rebase
-                  git fetch
-                  git push -f origin HEAD:auto-update
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0   # 重要，避免 push 冲突
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate new blocklists
+        run: |
+          python generate.py
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A || true
+
+          # 如果没有变更，跳过 commit
+          git diff --cached --quiet || git commit -m "Updated blocklists"
+
+          # 强制推送到你的 auto-update 分支
+          git push -f origin HEAD:auto-update
